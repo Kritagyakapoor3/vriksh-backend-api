@@ -1,29 +1,43 @@
 from fastapi import FastAPI
+from pydantic import BaseModel
 import numpy as np
 import pickle
 
 app = FastAPI()
 
-# Load model
-model = pickle.load(open("model.pkl", "rb"))
+# -----------------------------
+# Load ML Model
+# -----------------------------
+# Make sure your file is named: model.pkl
+with open("model.pkl", "rb") as f:
+    model = pickle.load(f)
 
-# Load label encoder (optional)
-try:
-    label_encoder = pickle.load(open("label_encoder.pkl", "rb"))
-except:
-    label_encoder = None
 
+# -----------------------------
+# Input Schema
+# -----------------------------
+class Features(BaseModel):
+    data: list
+
+
+# -----------------------------
+# Routes
+# -----------------------------
 @app.get("/")
 def home():
-    return {"status": "API is running 🎉"}
+    return {"status": "API is running 🎉", "predict_url": "/predict"}
+
 
 @app.post("/predict")
-def predict(features: list):
+def predict(features: Features):
+    try:
+        # Convert list to numpy array
+        arr = np.array(features.data).reshape(1, -1)
 
-    data = np.array(features).reshape(1, -1)
-    pred = model.predict(data)[0]
+        # Run prediction
+        pred = model.predict(arr)[0]
 
-    if label_encoder:
-        pred = label_encoder.inverse_transform([pred])[0]
+        return {"prediction": str(pred)}
 
-    return {"prediction": str(pred)}
+    except Exception as e:
+        return {"error": str(e)}
